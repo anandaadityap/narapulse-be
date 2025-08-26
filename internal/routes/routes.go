@@ -20,12 +20,15 @@ func Setup(app *fiber.App, db *gorm.DB) {
 	// Initialize services
 	connectorService := services.NewConnectorService()
 	dataSourceService := services.NewDataSourceService(dataSourceRepo, schemaRepo, connectorService)
+	nl2sqlService := services.NewNL2SQLService(db)
 
 	// Initialize handlers
 	userHandler := handlers.NewUserHandler(db)
 	authHandler := handlers.NewAuthHandler(db)
 	// Initialize DataSourceHandler
 	dataSourceHandler := handlers.NewDataSourceHandler(dataSourceService)
+	// Initialize NL2SQLHandler
+	nl2sqlHandler := handlers.NewNL2SQLHandler(nl2sqlService)
 
 	// API routes
 	api := app.Group("/api/v1")
@@ -50,6 +53,9 @@ func Setup(app *fiber.App, db *gorm.DB) {
 	dataSources.Post("/test-connection", dataSourceHandler.TestConnection)
 	dataSources.Post("/:id/refresh-schema", dataSourceHandler.RefreshSchema)
 	dataSources.Post("/upload", dataSourceHandler.UploadFile)
+
+	// NL2SQL routes (protected)
+	SetupNL2SQLRoutes(protected, nl2sqlHandler)
 
 	// Admin routes
 	admin := api.Group("/admin", middleware.AuthMiddleware(), middleware.AdminMiddleware())
