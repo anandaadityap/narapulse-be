@@ -1,0 +1,858 @@
+basePath: /api/v1
+definitions:
+  models.Column:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+      nullable:
+        type: boolean
+      primary_key:
+        type: boolean
+      sample_values:
+        items: {}
+        type: array
+      type:
+        description: data type (string, integer, float, boolean, date, etc.)
+        type: string
+    type: object
+  models.ConnectionStatus:
+    enum:
+    - active
+    - inactive
+    - error
+    - connecting
+    type: string
+    x-enum-varnames:
+    - ConnectionStatusActive
+    - ConnectionStatusInactive
+    - ConnectionStatusError
+    - ConnectionStatusConnecting
+  models.DataSourceCreateRequest:
+    properties:
+      config:
+        additionalProperties: true
+        type: object
+      description:
+        maxLength: 500
+        type: string
+      name:
+        maxLength: 100
+        minLength: 1
+        type: string
+      type:
+        $ref: '#/definitions/models.DataSourceType'
+    required:
+    - config
+    - name
+    - type
+    type: object
+  models.DataSourceResponse:
+    properties:
+      config:
+        additionalProperties: true
+        description: Sensitive data should be masked
+        type: object
+      created_at:
+        type: string
+      description:
+        type: string
+      error_message:
+        type: string
+      id:
+        type: integer
+      last_tested:
+        type: string
+      metadata:
+        additionalProperties: true
+        type: object
+      name:
+        type: string
+      schemas:
+        items:
+          $ref: '#/definitions/models.SchemaResponse'
+        type: array
+      status:
+        $ref: '#/definitions/models.ConnectionStatus'
+      type:
+        $ref: '#/definitions/models.DataSourceType'
+      updated_at:
+        type: string
+    type: object
+  models.DataSourceType:
+    enum:
+    - csv
+    - excel
+    - postgresql
+    - bigquery
+    - google_sheets
+    type: string
+    x-enum-varnames:
+    - DataSourceTypeCSV
+    - DataSourceTypeExcel
+    - DataSourceTypePostgreSQL
+    - DataSourceTypeBigQuery
+    - DataSourceTypeGoogleSheets
+  models.DataSourceUpdateRequest:
+    properties:
+      config:
+        additionalProperties: true
+        type: object
+      description:
+        maxLength: 500
+        type: string
+      name:
+        maxLength: 100
+        minLength: 1
+        type: string
+    type: object
+  models.FileUploadResponse:
+    properties:
+      file_name:
+        type: string
+      file_path:
+        type: string
+      file_size:
+        type: integer
+      mime_type:
+        type: string
+    type: object
+  models.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  models.LoginResponse:
+    properties:
+      token:
+        type: string
+      user:
+        $ref: '#/definitions/models.UserResponse'
+    type: object
+  models.Meta:
+    properties:
+      limit:
+        type: integer
+      page:
+        type: integer
+      total:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+  models.SchemaResponse:
+    properties:
+      columns:
+        items:
+          $ref: '#/definitions/models.Column'
+        type: array
+      created_at:
+        type: string
+      description:
+        type: string
+      display_name:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      name:
+        type: string
+      row_count:
+        type: integer
+      sample_data:
+        items:
+          additionalProperties: true
+          type: object
+        type: array
+      updated_at:
+        type: string
+    type: object
+  models.StandardResponse:
+    properties:
+      data: {}
+      error: {}
+      message:
+        type: string
+      meta:
+        $ref: '#/definitions/models.Meta'
+      success:
+        type: boolean
+    type: object
+  models.TestConnectionRequest:
+    properties:
+      config:
+        additionalProperties: true
+        type: object
+      type:
+        $ref: '#/definitions/models.DataSourceType'
+    required:
+    - config
+    - type
+    type: object
+  models.TestConnectionResponse:
+    properties:
+      message:
+        type: string
+      schemas:
+        description: Available tables/sheets
+        items:
+          type: string
+        type: array
+      success:
+        type: boolean
+    type: object
+  models.UserCreateRequest:
+    properties:
+      email:
+        type: string
+      first_name:
+        type: string
+      last_name:
+        type: string
+      password:
+        minLength: 6
+        type: string
+      username:
+        maxLength: 50
+        minLength: 3
+        type: string
+    required:
+    - email
+    - first_name
+    - last_name
+    - password
+    - username
+    type: object
+  models.UserResponse:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      first_name:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      last_name:
+        type: string
+      role:
+        type: string
+      updated_at:
+        type: string
+      username:
+        type: string
+    type: object
+  models.UserUpdateRequest:
+    properties:
+      email:
+        type: string
+      first_name:
+        type: string
+      last_name:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@narapulse.com
+    name: API Support
+    url: http://www.narapulse.com/support
+  description: NaraPulse Backend API for data analytics and visualization platform
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: http://swagger.io/terms/
+  title: NaraPulse API
+  version: "1.0"
+paths:
+  /admin/users:
+    get:
+      consumes:
+      - application/json
+      description: Get a paginated list of all users
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.StandardResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.UserResponse'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+      security:
+      - BearerAuth: []
+      summary: Get all users (Admin only)
+      tags:
+      - admin
+  /admin/users/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a user by ID
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete user (Admin only)
+      tags:
+      - admin
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user and return JWT token
+      parameters:
+      - description: Login credentials
+        in: body
+        name: credentials
+        required: true
+        schema:
+          $ref: '#/definitions/models.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.StandardResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.LoginResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+      summary: Login user
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Register a new user with email, username, and password
+      parameters:
+      - description: User registration data
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/models.UserCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.StandardResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.UserResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+      summary: Register a new user
+      tags:
+      - auth
+  /data-sources:
+    get:
+      consumes:
+      - application/json
+      description: Get all data sources for the authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.StandardResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.DataSourceResponse'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get user's data sources
+      tags:
+      - data-sources
+    post:
+      consumes:
+      - application/json
+      description: Create a new data source connection
+      parameters:
+      - description: Data source configuration
+        in: body
+        name: data_source
+        required: true
+        schema:
+          $ref: '#/definitions/models.DataSourceCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.StandardResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.DataSourceResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Create a new data source
+      tags:
+      - data-sources
+  /data-sources/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a data source and its associated schemas
+      parameters:
+      - description: Data Source ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Delete a data source
+      tags:
+      - data-sources
+    get:
+      consumes:
+      - application/json
+      description: Get a data source by ID with its schemas
+      parameters:
+      - description: Data Source ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.StandardResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.DataSourceResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get a specific data source
+      tags:
+      - data-sources
+    put:
+      consumes:
+      - application/json
+      description: Update a data source configuration
+      parameters:
+      - description: Data Source ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Data source update data
+        in: body
+        name: data_source
+        required: true
+        schema:
+          $ref: '#/definitions/models.DataSourceUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.StandardResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.DataSourceResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Update a data source
+      tags:
+      - data-sources
+  /data-sources/{id}/refresh-schema:
+    post:
+      consumes:
+      - application/json
+      description: Refresh the schema information for a data source
+      parameters:
+      - description: Data Source ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.StandardResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.DataSourceResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Refresh data source schema
+      tags:
+      - data-sources
+  /data-sources/test-connection:
+    post:
+      consumes:
+      - application/json
+      description: Test connection to a data source without creating it
+      parameters:
+      - description: Connection configuration
+        in: body
+        name: connection
+        required: true
+        schema:
+          $ref: '#/definitions/models.TestConnectionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.StandardResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.TestConnectionResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Test data source connection
+      tags:
+      - data-sources
+  /data-sources/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload a CSV or Excel file to create a file-based data source
+      parameters:
+      - description: CSV or Excel file
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.StandardResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.FileUploadResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Upload a file for CSV/Excel data source
+      tags:
+      - data-sources
+  /profile:
+    get:
+      consumes:
+      - application/json
+      description: Get the profile of the authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.StandardResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.UserResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+      security:
+      - BearerAuth: []
+      summary: Get user profile
+      tags:
+      - users
+    put:
+      consumes:
+      - application/json
+      description: Update the profile of the authenticated user
+      parameters:
+      - description: User update data
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/models.UserUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.StandardResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.UserResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+      security:
+      - BearerAuth: []
+      summary: Update user profile
+      tags:
+      - users
+securityDefinitions:
+  ApiKeyAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+  BearerAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

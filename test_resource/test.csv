@@ -1,0 +1,4 @@
+name,age,salary,is_active,email,created_date,website
+John Doe,25,50000.50,true,john@example.com,2024-01-15,https://johndoe.com
+Jane Smith,30,75000.75,false,jane@example.com,2024-01-16,https://janesmith.com
+Bob Johnson,35,60000.00,true,bob@example.com,2024-01-17,https://bobjohnson.com

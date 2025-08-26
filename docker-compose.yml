@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: narapulse-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-narapulsedb}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - narapulse-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API (optional, for full containerization)
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: narapulse-api
+    environment:
+      PORT: ${PORT:-8080}
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-narapulsedb}?sslmode=disable
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+    ports:
+      - "${PORT:-8080}:${PORT:-8080}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - narapulse-network
+    profiles:
+      - full # Only start with --profile full
+
+  # pgAdmin (optional, for database management)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: narapulse-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@narapulse.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - narapulse-network
+    profiles:
+      - tools # Only start with --profile tools
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  narapulse-network:
+    driver: bridge

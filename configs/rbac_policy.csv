@@ -1,0 +1,5 @@
+p, admin, /api/v1/admin/*, *
+p, admin, /api/v1/profile, *
+p, user, /api/v1/profile, GET
+p, user, /api/v1/profile, PUT
+g, admin@narapulse.com, admin
