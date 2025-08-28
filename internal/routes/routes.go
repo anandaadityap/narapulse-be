@@ -20,7 +20,14 @@ func Setup(app *fiber.App, db *gorm.DB) {
 	// Initialize services
 	connectorService := services.NewConnectorService()
 	dataSourceService := services.NewDataSourceService(dataSourceRepo, schemaRepo, connectorService)
-	nl2sqlService := services.NewNL2SQLService(db)
+	
+	// Initialize RAG-related services
+	embeddingService := services.NewEmbeddingService(db, "")
+	ragService := services.NewRAGService(db, embeddingService)
+	nl2sqlService := services.NewNL2SQLService(db, ragService)
+	
+	// Initialize schema sync service
+	schemaSyncService := services.NewSchemaSyncService(db, ragService, embeddingService)
 
 	// Initialize handlers
 	userHandler := handlers.NewUserHandler(db)
@@ -29,6 +36,10 @@ func Setup(app *fiber.App, db *gorm.DB) {
 	dataSourceHandler := handlers.NewDataSourceHandler(dataSourceService)
 	// Initialize NL2SQLHandler
 	nl2sqlHandler := handlers.NewNL2SQLHandler(nl2sqlService)
+	// Initialize Schema Sync Handler
+	schemaSyncHandler := handlers.NewSchemaSyncHandler(schemaSyncService)
+	// Initialize RAG Handler
+	ragHandler := handlers.NewRAGHandler(ragService, embeddingService)
 
 	// API routes
 	api := app.Group("/api/v1")
@@ -56,6 +67,17 @@ func Setup(app *fiber.App, db *gorm.DB) {
 
 	// NL2SQL routes (protected)
 	SetupNL2SQLRoutes(protected, nl2sqlHandler)
+
+	// RAG routes (protected)
+	SetupRAGRoutes(app, ragHandler)
+
+	// Schema Sync routes (protected)
+	schemaSync := protected.Group("/schema-sync")
+	schemaSync.Get("/status", schemaSyncHandler.GetSyncStatus)
+	schemaSync.Post("/trigger", schemaSyncHandler.TriggerSyncAll)
+	schemaSync.Post("/trigger/:id", schemaSyncHandler.TriggerSync)
+	schemaSync.Get("/status/:id", schemaSyncHandler.GetDataSourceSyncStatus)
+	schemaSync.Post("/scheduled", schemaSyncHandler.ScheduledSync)
 
 	// Admin routes
 	admin := api.Group("/admin", middleware.AuthMiddleware(), middleware.AdminMiddleware())

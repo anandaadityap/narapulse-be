@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -27,14 +28,16 @@ type NL2SQLService struct {
 	sqlValidator     *SQLValidatorService
 	connectorService *ConnectorService
 	aiService        *AIService // Will be implemented later
+	ragService       *RAGService
 }
 
 // NewNL2SQLService creates a new NL2SQL service
-func NewNL2SQLService(db *gorm.DB) *NL2SQLService {
+func NewNL2SQLService(db *gorm.DB, ragService *RAGService) *NL2SQLService {
 	return &NL2SQLService{
 		db:               db,
 		sqlValidator:     NewSQLValidatorService(),
 		connectorService: &ConnectorService{}, // Placeholder
+		ragService:       ragService,
 		// aiService will be initialized when AI integration is ready
 	}
 }
@@ -72,14 +75,14 @@ func (s *NL2SQLService) ConvertNL2SQL(userID uint, request *models.NL2SQLRequest
 		return nil, fmt.Errorf("failed to create query record: %v", err)
 	}
 
-	// Get schema information for context
-	schemaContext, err := s.buildSchemaContext(dataSource)
+	// Build enhanced context using RAG system
+	enhancedContext, err := s.buildEnhancedContext(dataSource, request.NLQuery)
 	if err != nil {
-		return nil, fmt.Errorf("failed to build schema context: %v", err)
+		return nil, fmt.Errorf("failed to build enhanced context: %v", err)
 	}
 
-	// Generate SQL (mock implementation for now)
-	generatedSQL, err := s.generateSQL(request.NLQuery, schemaContext)
+	// Generate SQL using enhanced context
+	generatedSQL, err := s.generateSQLWithRAG(request.NLQuery, enhancedContext)
 	if err != nil {
 		query.MarkFailed(err.Error())
 		s.db.Save(query)
@@ -120,7 +123,7 @@ func (s *NL2SQLService) ConvertNL2SQL(userID uint, request *models.NL2SQLRequest
 	// Store metadata
 	metadata := map[string]interface{}{
 		"validation_result": validationResult,
-		"schema_context":    schemaContext,
+		"enhanced_context":  enhancedContext,
 		"generated_at":      time.Now(),
 	}
 	metadataJSON, _ := json.Marshal(metadata)
@@ -358,12 +361,107 @@ func (s *NL2SQLService) buildSchemaContext(dataSource *models.DataSource) (map[s
 	return context, nil
 }
 
+// buildEnhancedContext builds context using RAG system for better NL2SQL conversion
+func (s *NL2SQLService) buildEnhancedContext(dataSource *models.DataSource, nlQuery string) (map[string]interface{}, error) {
+	// Get basic schema context
+	schemaContext, err := s.buildSchemaContext(dataSource)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build schema context: %v", err)
+	}
+
+	// Use RAG service to build enhanced context
+	ragContext, err := s.ragService.BuildNL2SQLContext(context.Background(), nlQuery, dataSource.ID)
+	if err != nil {
+		// If RAG fails, fallback to basic schema context
+		return schemaContext, nil
+	}
+
+	// Merge schema context with RAG context
+	enhancedContext := map[string]interface{}{
+		"data_source_type":   dataSource.Type,
+		"data_source_name":   dataSource.Name,
+		"schemas":            schemaContext["schemas"],
+		"similar_schemas":    ragContext["similar_schemas"],
+		"relevant_kpis":      ragContext["relevant_kpis"],
+		"business_glossary":  ragContext["business_glossary"],
+		"query_examples":     ragContext["query_examples"],
+		"enhanced_prompt":    ragContext["enhanced_prompt"],
+	}
+
+	return enhancedContext, nil
+}
+
 // generateSQL generates SQL from natural language (mock implementation)
 func (s *NL2SQLService) generateSQL(nlQuery string, schemaContext map[string]interface{}) (string, error) {
 	// This is a mock implementation
 	// In the real implementation, this will call the AI service
 	
 	// Simple pattern matching for demo purposes
+	if contains(nlQuery, []string{"sales", "revenue", "total"}) {
+		return "SELECT SUM(amount) as total_sales FROM sales WHERE date >= '2024-01-01' LIMIT 1000", nil
+	}
+	
+	if contains(nlQuery, []string{"count", "number", "how many"}) {
+		return "SELECT COUNT(*) as total_count FROM sales LIMIT 1000", nil
+	}
+	
+	if contains(nlQuery, []string{"average", "avg", "mean"}) {
+		return "SELECT AVG(amount) as average_amount FROM sales LIMIT 1000", nil
+	}
+
+	// Default fallback
+	return "SELECT * FROM sales LIMIT 100", nil
+}
+
+// generateSQLWithRAG generates SQL using enhanced context from RAG system
+func (s *NL2SQLService) generateSQLWithRAG(nlQuery string, enhancedContext map[string]interface{}) (string, error) {
+	// Extract enhanced prompt if available
+	enhancedPrompt, hasPrompt := enhancedContext["enhanced_prompt"].(string)
+	
+	// If we have an enhanced prompt from RAG, use it for better SQL generation
+	if hasPrompt && enhancedPrompt != "" {
+		// TODO: When AI service is implemented, use enhanced prompt
+		// For now, use enhanced context for better pattern matching
+		return s.generateSQLWithEnhancedPatterns(nlQuery, enhancedContext)
+	}
+	
+	// Fallback to basic generation with schema context
+	schemaContext := map[string]interface{}{
+		"data_source_type": enhancedContext["data_source_type"],
+		"data_source_name": enhancedContext["data_source_name"],
+		"schemas":          enhancedContext["schemas"],
+	}
+	return s.generateSQL(nlQuery, schemaContext)
+}
+
+// generateSQLWithEnhancedPatterns uses enhanced context for better pattern matching
+func (s *NL2SQLService) generateSQLWithEnhancedPatterns(nlQuery string, enhancedContext map[string]interface{}) (string, error) {
+	// Get relevant KPIs and business terms
+	relevantKPIs, _ := enhancedContext["relevant_kpis"].([]models.KPIDefinition)
+	businessGlossary, _ := enhancedContext["business_glossary"].([]models.BusinessGlossary)
+	
+	// Enhanced pattern matching using KPIs and business terms
+	for _, kpi := range relevantKPIs {
+		if contains(strings.ToLower(nlQuery), []string{strings.ToLower(kpi.Name)}) {
+			// Use KPI definition to generate more accurate SQL
+			if kpi.Formula != "" {
+				return kpi.Formula + " LIMIT 1000", nil
+			}
+		}
+	}
+	
+	// Check business glossary for domain-specific terms
+	for _, term := range businessGlossary {
+		if contains(strings.ToLower(nlQuery), []string{strings.ToLower(term.Term)}) {
+			// Use business context for better SQL generation
+			// This is a simplified implementation
+			if contains(term.Definition, []string{"sum", "total", "aggregate"}) {
+				return fmt.Sprintf("SELECT SUM(%s) as total FROM %s LIMIT 1000", term.Term, "main_table"), nil
+			}
+		}
+	}
+	
+	// Fallback to basic patterns
 	if contains(nlQuery, []string{"sales", "revenue", "total"}) {
 		return "SELECT SUM(amount) as total_sales FROM sales WHERE date >= '2024-01-01' LIMIT 1000", nil
 	}
